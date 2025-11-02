@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PasteLink Pribadi</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #f6f8fa;
+      color: #333;
+      max-width: 700px;
+      margin: 40px auto;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.08);
+    }
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    textarea, input, select {
+      width: 100%;
+      margin-top: 8px;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 15px;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 12px;
+      padding: 10px 25px;
+      border: none;
+      border-radius: 8px;
+      background-color: #0077ff;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #005ed1;
+    }
+    .saved {
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 25px;
+    }
+    .note {
+      background: #fafafa;
+      padding: 10px;
+      border-left: 4px solid #0077ff;
+      border-radius: 6px;
+      margin-bottom: 10px;
+    }
+    .expired {
+      opacity: 0.5;
+    }
+    .adbox {
+      background: #fff;
+      margin: 20px 0;
+      padding: 10px;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 14px;
+      color: #555;
+      border: 1px solid #eee;
+    }
+  </style>
+</head>
+<body>
+  <h1>PasteLink Pribadi 🔒</h1>
+
+  <textarea id="inputText" placeholder="Tulis teks atau link di sini..."></textarea>
+  <input id="password" type="text" placeholder="Password (opsional)">
+  <select id="expiry">
+    <option value="">Tidak ada kadaluarsa</option>
+    <option value="1h">1 jam</option>
+    <option value="1d">1 hari</option>
+    <option value="3d">3 hari</option>
+    <option value="7d">7 hari</option>
+  </select>
+  <button onclick="saveText()">💾 Simpan</button>
+
+  <!-- Tempat Iklan -->
+  <div class="adbox">
+    <!-- Ganti script di bawah ini dengan kode Adcash kamu -->
+    <p><i>Slot Iklan di sini (tempel script Adcash kamu)</i></p>
+  </div>
+
+  <div class="saved">
+    <h3>📂 Data Tersimpan:</h3>
+    <div id="output"></div>
+  </div>
+
+  <script>
+    function saveText() {
+      const val = document.getElementById('inputText').value.trim();
+      const pw = document.getElementById('password').value.trim();
+      const expiry = document.getElementById('expiry').value;
+      if (!val) return alert('Teks masih kosong!');
+
+      const now = Date.now();
+      let expiresAt = null;
+      if (expiry === '1h') expiresAt = now + 3600000;
+      if (expiry === '1d') expiresAt = now + 86400000;
+      if (expiry === '3d') expiresAt = now + 3 * 86400000;
+      if (expiry === '7d') expiresAt = now + 7 * 86400000;
+
+      let data = JSON.parse(localStorage.getItem('savedTexts') || '[]');
+      data.unshift({ text: val, password: pw, expiresAt });
+      localStorage.setItem('savedTexts', JSON.stringify(data));
+
+      document.getElementById('inputText').value = '';
+      document.getElementById('password').value = '';
+      document.getElementById('expiry').value = '';
+      render();
+    }
+
+    function render() {
+      const now = Date.now();
+      let data = JSON.parse(localStorage.getItem('savedTexts') || '[]');
+      const out = document.getElementById('output');
+
+      if (data.length === 0) {
+        out.innerHTML = '<i>Belum ada data tersimpan.</i>';
+        return;
+      }
+
+      // Bersihkan data kadaluarsa
+      data = data.filter(item => !item.expiresAt || item.expiresAt > now);
+      localStorage.setItem('savedTexts', JSON.stringify(data));
+
+      out.innerHTML = data.map((item, index) => {
+        let timeInfo = '';
+        if (item.expiresAt) {
+          const diff = item.expiresAt - now;
+          const hrs = Math.floor(diff / 3600000);
+          const days = Math.floor(diff / 86400000);
+          if (days > 0) timeInfo = `${days} hari lagi`;
+          else if (hrs > 0) timeInfo = `${hrs} jam lagi`;
+          else timeInfo = 'Segera kadaluarsa';
+        }
+
+        return `
+          <div class="note">
+            ${item.password ? `
+              <p><b>Password:</b> ${item.password}</p>
+              <button onclick="unlock(${index})">🔓 Buka</button>
+              <div id="content-${index}" style="display:none;"></div>
+            ` : `
+              <p>${parseLink(item.text)}</p>
+            `}
+            <small>${timeInfo}</small>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function unlock(index) {
+      const pw = prompt('Masukkan password:');
+      const data = JSON.parse(localStorage.getItem('savedTexts') || '[]');
+      const item = data[index];
+      if (pw === item.password) {
+        document.getElementById(`content-${index}`).innerHTML = parseLink(item.text);
+        document.getElementById(`content-${index}`).style.display = 'block';
+      } else {
+        alert('Password salah!');
+      }
+    }
+
+    function parseLink(text) {
+      if (text.startsWith('http')) {
+        return `<a href="${text}" target="_blank">${text}</a>`;
+      }
+      return text.replace(/\n/g, '<br>');
+    }
+
+    render();
+  </script>
+</body>
+</html>
